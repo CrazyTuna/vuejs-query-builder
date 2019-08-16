@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Vue.js/Boostrap: Query Builder</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.0/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.42/css/bootstrap-datetimepicker.min.css"
+        rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.2/css/bootstrap3/bootstrap-switch.min.css" rel="stylesheet"
+    />
+    <style>
+        .glyphicon-flipped {
+            transform: scaleY(-1);
+            -moz-transform: scaleY(-1);
+            -webkit-transform: scaleY(-1);
+            -ms-transform: scaleY(-1);
+        }
+        
+        li.root-element {
+            list-style: none;
+        }
+    </style>
+</head>
+
+<body>
+    <template id="operation-template">
+        <li v-if="op.type==='expr'" class="list-group-item">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <select v-select="op.selectedField" :options="fields">
+                            <option v-for="o in fields" :value="o.name">{{ o.text }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <select v-model="op.selectedOperator" class="form-control">
+                            <option v-for="o in filteredOperators" :value="o">{{ o }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div v-if="selectedFieldItem.type == 'DateTime'" class="form-group">
+                        <div v-datetimepicker="op.selectedValue" class='input-group date'>
+                            <input type="text" class="form-control" />
+                            <span class="input-group-addon">
+                                <span class="glyphicon glyphicon-calendar">
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <template v-else>
+                        <div v-if="selectedFieldItem.type == 'Number'" class="form-group">
+                            <input type="number" v-model="op.selectedValue" class="form-control" />
+                        </div>
+                        <template v-else>
+                            <div v-if="selectedFieldItem.type == 'Enum'" class="form-group">
+                                <select v-model="op.selectedValue" class="form-control">
+                                    <option v-for="o in selectedFieldItem.enumeration" :value="o">{{ o }}</option>
+                                </select>
+                            </div>
+                            <div v-else class="form-group">
+                                <input type="text" v-model="op.selectedValue" class="form-control" />
+                            </div>
+                        </template>
+
+                    </template>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group pull-right">
+                        <slot></slot>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <h5>{{{query}}}</h5>
+                </div>
+            </div>
+        </li>
+        <li v-else :class="this.$root !== this.$parent ? 'list-group-item': 'root-element'">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <input v-switch="op.type" type="checkbox" on-text="AND" off-text="OR" class="BSswitch">
+                            <!--<div class="btn-group" style="display:inline-block" data-toggle="buttons" v-radio="op.type">
+                                <label :class="{ 'disabled': op.items.length <= 1 }" class="btn btn-success"><input type="radio" autocomplete="off" value="AND" /> AND </label>
+                                <label :class="{ 'disabled': op.items.length <= 1 }" class="btn btn-success"><input type="radio" autocomplete="off" value="OR" /> OR </label>
+                            </div>-->
+
+                        </div>
+                        <div class="col-md-7">
+                            <h5>{{{rawQuery}}}</h5>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="btn-group pull-right">
+                                <button type="button" class="btn btn-danger" title="Add a new rule" v-on:click.stop="addRule"><span class="glyphicon glyphicon-plus"></button>
+                                <button type="button" class="btn btn-danger" title="Add a new group" v-on:click.stop="addGroup"><span class="glyphicon glyphicon-share-alt glyphicon-flipped"></button>
+                                <slot></slot>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <ul class="list-group" v-sortable :items="op.items">
+                    <li v-for="item in op.items" is="operation" :fields="fields" :field-types="fieldTypes" :op="item" class="list-group-item"
+                        v-ref:items>
+                        <button type="button" class="btn btn-drag" :class="item.type==='expr' ? 'btn-info' : 'btn-danger'" title="Move"><span class="glyphicon glyphicon-fullscreen"></button>
+                        <button type="button" class="btn" :class="item.type==='expr' ? 'btn-info' : 'btn-danger'" title="Delete the rule" v-on:click.stop="removeItem($index)"><span class="glyphicon glyphicon-remove"></span></button>
+                    </li>
+                </ul>
+            </div>
+        </li>
+    </template>
+
+    <div class="container" id="app">
+        <div class="row">
+            <operation :fields="fields" :field-types="fieldTypes" :op="operation" />
+        </div>
+    </div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+        crossorigin="anonymous"></script>
+    <!-- Select2: custom select for Boostrap -->
+    <!-- Don't update to v4.0.3 => I ve opened an issue related to focus: https://github.com/select2/select2/issues/4570' -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.0/js/select2.min.js"></script>
+    <!-- Sortable.js: sortable liste plugin -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/Sortable/1.4.2/Sortable.min.js"></script>
+    <!-- boostrap datetime picker use also moment.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.15.0/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.42/js/bootstrap-datetimepicker.min.js"></script>
+    <!-- boostrap switch -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.2/js/bootstrap-switch.min.js"></script>
+    <!-- Vue.js -->
+    <script src="https://cdn.jsdelivr.net/vue/1.0.26/vue.min.js"></script>
+    <!-- Custom scripts -->
+    <script src="./v-radio.js"></script>
+    <script src="./v-select.js"></script>
+    <script src="./v-sortable.js"></script>
+    <script src="./v-datetimepicker.js"></script>
+    <script src="./v-switch.js"></script>
+    <script src="./operation-component.js"></script>
+    <script src="./reference-data.js"></script>
+    <script>
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                fields: availableFields,
+                fieldTypes: fieldTypes,
+                operation: {
+                    type: "AND",
+                    items:[
+                        { type: "expr", selectedField: "Category", selectedOperator:"Equal", selectedValue:"Files", query: undefined },
+                        { type: "expr", selectedField: "CreatedDate", selectedOperator:"LessThan", selectedValue:"01/01/2008", query: undefined },
+                        { type: "OR", items: [
+                            { type: "expr", selectedField: "SourceLocation", selectedOperator:"StartsWith", selectedValue:"Cat", query: undefined },
+                            { type: "expr", selectedField: "CreatedDate", selectedOperator:"LessThan", selectedValue:"01/01/2008" , query: undefined}
+                        ]}
+                    ]
+                }                
+            }
+        });
+    </script>
+</body>
+
+</html>
